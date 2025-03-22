@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 
-// 借贷代币接口
+// LoanToken interface
 interface ILoanToken {
     function mint(address to, uint256 amount) external;
     function burn(address from, uint256 amount) external;
@@ -14,29 +14,29 @@ interface ILoanToken {
 
 /**
  * @title CrossChainStaking
- * @dev 跨链质押合约，接收跨链资产并铸造借贷代币
+ * @dev Cross-chain staking contract, receives cross-chain assets and mints loan tokens
  */
 contract CrossChainStaking is Ownable, ReentrancyGuard {
     using SafeERC20 for IERC20;
     
-    // 状态变量
-    IERC20 public stakingToken;    // 质押代币（跨链资产）
-    ILoanToken public loanToken;   // 借贷代币
-    uint256 public loanRatio;      // 借贷比率（10 = 10倍）
+    // State variables
+    IERC20 public stakingToken;    // LoanToken
+    ILoanToken public loanToken;   // LoanToken
+    uint256 public loanRatio;      // Loan ratio (10 = 10x)
     
-    // 用户质押信息
+    // User stake information
     struct StakeInfo {
-        uint256 stakedAmount;      // 质押数量
-        uint256 loanedAmount;      // 借贷数量
+        uint256 stakedAmount;      // Staked amount
+        uint256 loanedAmount;      // Loaned amount
     }
     
-    // 用户地址 => 质押信息
+    // User address => stake information
     mapping(address => StakeInfo) public stakes;
     
-    // 总质押量
+    // Total staked amount
     uint256 public totalStaked;
     
-    // 事件
+    // Events
     event Staked(address indexed user, uint256 amount, uint256 loanedAmount);
     event Unstaked(address indexed user, uint256 amount, uint256 burnedAmount);
     event LoanRatioUpdated(uint256 oldRatio, uint256 newRatio);
@@ -44,11 +44,11 @@ contract CrossChainStaking is Ownable, ReentrancyGuard {
     event LoanTokenUpdated(address oldToken, address newToken);
     
     /**
-     * @dev 构造函数
-     * @param _stakingToken 质押代币地址（跨链资产）
-     * @param _loanToken 借贷代币地址
-     * @param _loanRatio 借贷比率
-     * @param initialOwner 初始所有者地址
+     * @dev Constructor
+     * @param _stakingToken The address of the staking token (cross-chain asset)
+     * @param _loanToken The address of the loan token
+     * @param _loanRatio The loan ratio (10 = 10x)
+     * @param initialOwner The initial owner address
      */
     constructor(
         address _stakingToken,
@@ -66,90 +66,90 @@ contract CrossChainStaking is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev 质押代币并获取借贷代币
-     * @param amount 质押数量
+     * @dev Stake tokens and get loan tokens
+     * @param amount The amount to stake
      */
     function stake(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be positive");
         
-        // 转移质押代币到合约
+        // Transfer staking tokens to the contract
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         
-        // 计算借贷数量
+        // Calculate the loan amount
         uint256 loanAmount = amount * loanRatio;
         
-        // 更新用户质押信息
+        // Update user stake information
         stakes[msg.sender].stakedAmount += amount;
         stakes[msg.sender].loanedAmount += loanAmount;
         
-        // 更新总质押量
+        // Update total staked amount
         totalStaked += amount;
         
-        // 铸造借贷代币
+        // Mint loan tokens
         loanToken.mint(msg.sender, loanAmount);
         
         emit Staked(msg.sender, amount, loanAmount);
     }
     
     /**
-     * @dev 取回质押代币并销毁借贷代币
-     * @param amount 取回数量
+     * @dev Unstake tokens and burn loan tokens
+     * @param amount The amount to unstake
      */
     function unstake(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be positive");
         require(stakes[msg.sender].stakedAmount >= amount, "Insufficient staked amount");
         
-        // 计算需要销毁的借贷代币数量
+        // Calculate the amount of loan tokens to burn
         uint256 burnAmount = (amount * stakes[msg.sender].loanedAmount) / stakes[msg.sender].stakedAmount;
         require(burnAmount > 0, "Burn amount too small");
         
-        // 更新用户质押信息
+        // Update user stake information
         stakes[msg.sender].stakedAmount -= amount;
         stakes[msg.sender].loanedAmount -= burnAmount;
         
-        // 更新总质押量
+        // Update total staked amount
         totalStaked -= amount;
         
-        // 销毁借贷代币
+        // Burn loan tokens
         loanToken.burn(msg.sender, burnAmount);
         
-        // 转移质押代币回用户
+        // Transfer staking tokens back to the user
         stakingToken.safeTransfer(msg.sender, amount);
         
         emit Unstaked(msg.sender, amount, burnAmount);
     }
     
     /**
-     * @dev 直接接收跨链资产并为用户质押（可由跨链桥调用）
-     * @param user 用户地址
-     * @param amount 质押数量
+     * @dev Directly receive cross-chain assets and stake them for the user (can be called by the cross-chain bridge)
+     * @param user User address
+     * @param amount The amount to stake
      */
     function stakeForUser(address user, uint256 amount) external nonReentrant {
         require(user != address(0), "Invalid user address");
         require(amount > 0, "Amount must be positive");
         
-        // 转移质押代币到合约
+        // Transfer staking tokens to the contract
         stakingToken.safeTransferFrom(msg.sender, address(this), amount);
         
-        // 计算借贷数量
+        // Calculate the loan amount
         uint256 loanAmount = amount * loanRatio;
         
-        // 更新用户质押信息
+        // Update user stake information
         stakes[user].stakedAmount += amount;
         stakes[user].loanedAmount += loanAmount;
         
-        // 更新总质押量
+        // Update total staked amount
         totalStaked += amount;
         
-        // 铸造借贷代币
+        // Mint loan tokens
         loanToken.mint(user, loanAmount);
         
         emit Staked(user, amount, loanAmount);
     }
     
     /**
-     * @dev 更新借贷比率
-     * @param newRatio 新的借贷比率
+     * @dev Update the loan ratio
+     * @param newRatio The new loan ratio
      */
     function updateLoanRatio(uint256 newRatio) external onlyOwner {
         require(newRatio > 0, "Loan ratio must be positive");
@@ -159,8 +159,8 @@ contract CrossChainStaking is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev 更新质押代币地址
-     * @param newToken 新的质押代币地址
+     * @dev Update the staking token address
+     * @param newToken The new staking token address
      */
     function updateStakingToken(address newToken) external onlyOwner {
         require(newToken != address(0), "Invalid token address");
@@ -172,8 +172,8 @@ contract CrossChainStaking is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev 更新借贷代币地址
-     * @param newToken 新的借贷代币地址
+     * @dev Update the loan token address
+     * @param newToken The new loan token address
      */
     function updateLoanToken(address newToken) external onlyOwner {
         require(newToken != address(0), "Invalid token address");
@@ -185,19 +185,19 @@ contract CrossChainStaking is Ownable, ReentrancyGuard {
     }
     
     /**
-     * @dev 获取用户质押信息
-     * @param user 用户地址
-     * @return stakedAmount 质押数量
-     * @return loanedAmount 借贷数量
+     * @dev Get user stake information
+     * @param user User address
+     * @return stakedAmount Staked amount
+     * @return loanedAmount Loaned amount
      */
     function getUserStake(address user) external view returns (uint256 stakedAmount, uint256 loanedAmount) {
         return (stakes[user].stakedAmount, stakes[user].loanedAmount);
     }
     
     /**
-     * @dev 紧急提款（仅限所有者，用于紧急情况）
-     * @param token 代币地址
-     * @param amount 提款数量
+     * @dev Emergency withdrawal (only for the owner, for emergency situations)
+     * @param token Token address
+     * @param amount The amount to withdraw
      */
     function emergencyWithdraw(address token, uint256 amount) external onlyOwner {
         IERC20(token).safeTransfer(owner(), amount);

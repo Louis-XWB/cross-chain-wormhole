@@ -1,7 +1,7 @@
 {
   "name": "cross-chain-staking-app",
   "version": "1.0.0",
-  "description": "跨链质押应用",
+  "description": "Cross-chain staking application",
   "main": "dist/server.js",
   "scripts": {
     "build": "tsc",

@@ -6,21 +6,21 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title LoanToken
- * @dev 借贷代币合约，实现ERC-20标准，允许授权地址铸造和销毁代币
+ * @dev LoanToken is a token that allows authorized addresses to mint and burn tokens
  */
 contract LoanToken is ERC20, Ownable {
-    // 授权铸造者映射
+    // mapping of authorized minters
     mapping(address => bool) public minters;
     
-    // 事件
+    // Event
     event MinterAdded(address indexed minter);
     event MinterRemoved(address indexed minter);
     
     /**
-     * @dev 构造函数，设置代币名称和符号
-     * @param name 代币名称
-     * @param symbol 代币符号
-     * @param initialOwner 初始所有者地址
+     * @dev Constructor
+     * @param name The name of the token
+     * @param symbol The symbol of the token
+     * @param initialOwner The initial owner of the token
      */
     constructor(
         string memory name, 
@@ -29,8 +29,8 @@ contract LoanToken is ERC20, Ownable {
     ) ERC20(name, symbol) Ownable(initialOwner) {}
     
     /**
-     * @dev 添加铸造者权限
-     * @param minter 铸造者地址
+     * @dev Add minter permission
+     * @param minter The minter address
      */
     function addMinter(address minter) external onlyOwner {
         require(minter != address(0), "Invalid minter address");
@@ -39,8 +39,8 @@ contract LoanToken is ERC20, Ownable {
     }
     
     /**
-     * @dev 移除铸造者权限
-     * @param minter 铸造者地址
+     * @dev Remove minter permission
+     * @param minter The minter address
      */
     function removeMinter(address minter) external onlyOwner {
         require(minters[minter], "Not a minter");
@@ -49,9 +49,9 @@ contract LoanToken is ERC20, Ownable {
     }
     
     /**
-     * @dev 铸造代币
-     * @param to 接收者地址
-     * @param amount 铸造数量
+     * @dev Mint tokens
+     * @param to The recipient address
+     * @param amount The amount to mint
      */
     function mint(address to, uint256 amount) external {
         require(minters[msg.sender], "Caller is not a minter");
@@ -59,9 +59,9 @@ contract LoanToken is ERC20, Ownable {
     }
     
     /**
-     * @dev 销毁代币
-     * @param from 销毁来源地址
-     * @param amount 销毁数量
+     * @dev Burn tokens
+     * @param from The source address
+     * @param amount The amount to burn
      */
     function burn(address from, uint256 amount) external {
         require(minters[msg.sender], "Caller is not a minter");
